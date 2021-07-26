@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#CC0823">
+    <title>Covid-19 Dashboard</title>
+    <link href="./bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <script src="./bootstrap/js/bootstrap.min.js"></script>
+    <script src="./jquery/jquery-3.6.0.min.js"></script>
+    <script src="./chartjs/chart.min.js"></script>
+    <style>
+      a.navbar-ex-link:hover, a.ex5:active {text-decoration: underline;}
+    </style>
+</head>
+<body>
+  <nav class="navbar navbar-light" style="background-color: #f3dc9c;">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Covid-19 Dashboard [Update date: <span id="update_at"></span>] </a>
+      <a class="navbar-brand navbar-ex-link" target="_blank" href="https://ddc.moph.go.th/vaccine-covid19/" style="color: rgb(85, 85, 250);">คำแนะนำเกี่ยวกับวัคซีนจากกรมควบคุมโรค</a>
+    </div>
+  </nav>
+  <br>
+<div class="mx-3">
+  <div class="row row-cols-1 row-cols-md-4 g-4">
+    <div class="col">
+      <div class="text-white bg-danger mb-3">
+        <div class="card-header">ติดเชื้อสะสม</div>
+        <div class="card-body text-white">
+          <h5 class="card-title" id="total_confirmed"></h5>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card text-white bg-dark mb-3">
+        <div class="card-header">เสียชีวิตสะสม</div>
+        <div class="card-body text-white">
+          <h5 class="card-title" id="total_death"></h5>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card text-white bg-success mb-3">
+        <div class="card-header">หายป่วย</div>
+        <div class="card-body text-white">
+          <h5 class="card-title" id="total_recovered" ></h5>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card text-dark bg-warning mb-3">
+        <div class="card-header">รักษาอยู่ใน รพ.</div>
+        <div class="card-body text-dark">
+          <h5 class="card-title" id="total_hospitalized" ></h5>
+        </div>
+      </div>
+    </div>
+  </div>
+    
+    
+</div>
+  <br>
+
+  <div class="card border-secondary mb-2 mx-3">
+    <div class="card-header">STATISTIC</div>
+    <div class="card-body text-secondary">
+      <div class="col-md-12 d-flex justify-content-end">
+      <div class="col-md-3">
+        Filter:
+        <select class="form-select" aria-label="Default select example" id="data_range">
+          <option value="30" selected>ย้อนหลัง 30 วัน</option>
+          <option value="60">ย้อนหลัง 60 วัน</option>
+          <option value="90">ย้อนหลัง 90 วัน</option>
+          <option value="0">ตั้งแต่วันแรกที่มีการเก็บข้อมูล</option>
+        </select>
+      </div>
+      </div>
+      <div>
+        <canvas id="civid_chart" height="400"></canvas>
+      </div>
+      <div>
+        <canvas id="death_chart" height="400"></canvas>
+      </div>
+      </div>
+  </div>
+<a href="https://ddc.moph.go.th/vaccine-covid19/">aaa</a>
+</body>
+</html>
+<script>
+
+$( document ).ready(function() {
+  loadData();
+  loadDailyData();
+});
+
+function loadDailyData() {
+  $.getJSON('https://covid19.th-stat.com/json/covid19v2/getTodayCases.json', function (data, textStatus, jqXHR){
+    
+    $("#total_confirmed").text(data.Confirmed);
+    $("#total_death").text(data.Deaths);
+    $("#total_recovered").text(data.Recovered);
+    $("#total_hospitalized").text(data.Hospitalized);
+    $("#update_at").text(data.UpdateDate);
+  })
+  .done(function () { console.log('success')})
+  .fail(function (jqxhr,settings,ex) { alert('failed, '+ ex); });
+}
+
+var global_data;
+
+function loadData() {
+  $.getJSON('https://covid19.th-stat.com/json/covid19v2/getTimeline.json', function (data, textStatus, jqXHR){
+    global_data = data.Data;
+  })
+  .done(function () { genLineChartNewCase(global_data,30); })
+  .fail(function (jqxhr,settings,ex) { alert('failed, '+ ex); });
+}
+
+function genLineChartNewCase(data,time_period) {
+
+  max = data.length;
+  if (time_period==0) {
+    min = time_period;
+  } else {
+    min = max-time_period;
+  }
+  
+  slice_data = data.slice(min,max);
+  var labels = slice_data.map(function(e) {
+  return e.Date;
+  });
+  var dataNewConfirmed = slice_data.map(function(e) {
+      return e.NewConfirmed;
+  });
+  var dataNewRecovered = slice_data.map(function(e) {
+      return e.NewRecovered;
+  });
+  var dataNewDeaths = slice_data.map(function(e) {
+      return e.NewDeaths;
+  });
+
+  var ctx = document.getElementById('civid_chart');
+
+  if(window.lineChartNewCase instanceof Chart){
+    window.lineChartNewCase.destroy();
+  }
+  
+  window.lineChartNewCase = new Chart(ctx, {
+      type: 'line',
+      data: {
+          labels: labels,
+          datasets: [
+              {
+                  label: 'New Confirmed',
+                  data: dataNewConfirmed,
+                  borderColor: '#FF5733',
+              },
+              {
+                  label: 'New Recovered',
+                  data: dataNewRecovered,
+                  borderColor: '#08CC13',
+              }
+      ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        stacked: false,
+        plugins: {
+          title: {
+            display: true,
+            text: 'NEW CONFIRMED CASE/NEW RECOVERED STATISTIC'
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+          },
+        },
+        elements: {
+          point:{
+              radius: 0
+          }
+        }
+    },//end option
+  });
+  
+  var ctx_death = document.getElementById('death_chart');
+
+  if(window.lineChartNewDeath instanceof Chart){
+    window.lineChartNewDeath.destroy();
+  }
+  window.lineChartNewDeath = new Chart(ctx_death, {
+      type: 'line',
+      data: {
+          labels: labels,
+          datasets: [
+              {
+                  label: 'New Death',
+                  data: dataNewDeaths,
+                  borderColor: '#252222',
+              }
+      ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        stacked: false,
+        plugins: {
+          title: {
+            display: true,
+            text: 'NEW CONFIRMED CASE/NEW RECOVERED STATISTIC'
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+          },
+        },
+        elements: {
+          point:{
+              radius: 0
+          }
+        }
+    },//end option
+  });
+}
+
+$( "#data_range" ).change(function() {
+  genLineChartNewCase(global_data,$(this).val());
+});
+</script>
